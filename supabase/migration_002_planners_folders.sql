@@ -1,4 +1,4 @@
--- Migration 002: Planners + Folders
+-- Migration 002: Planners + Folders (fixed for re-run safety)
 -- Run this in Supabase: SQL Editor -> New query -> paste -> Run.
 -- Prerequisite: schema.sql must already be applied.
 --
@@ -6,6 +6,10 @@
 -- data: it creates the new tables, backfills a default planner for every
 -- existing user so their current tasks/notes/meetings/timeline/daily_state
 -- aren't orphaned, then locks planner_id as required going forward.
+--
+-- This version is also safe to re-run if a previous attempt partially
+-- failed: every `create policy` is preceded by a matching `drop policy
+-- if exists`, since Postgres has no `create policy if not exists`.
 
 -- ---------------------------------------------------------------------
 -- Folders
@@ -20,12 +24,19 @@ create table if not exists folders (
 
 alter table folders enable row level security;
 
+drop policy if exists "Users can view their own folders" on folders;
 create policy "Users can view their own folders"
   on folders for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert their own folders" on folders;
 create policy "Users can insert their own folders"
   on folders for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update their own folders" on folders;
 create policy "Users can update their own folders"
   on folders for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete their own folders" on folders;
 create policy "Users can delete their own folders"
   on folders for delete using (auth.uid() = user_id);
 
@@ -47,12 +58,19 @@ create table if not exists planners (
 
 alter table planners enable row level security;
 
+drop policy if exists "Users can view their own planners" on planners;
 create policy "Users can view their own planners"
   on planners for select using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert their own planners" on planners;
 create policy "Users can insert their own planners"
   on planners for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update their own planners" on planners;
 create policy "Users can update their own planners"
   on planners for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete their own planners" on planners;
 create policy "Users can delete their own planners"
   on planners for delete using (auth.uid() = user_id);
 
@@ -76,7 +94,8 @@ alter table tasks add constraint tasks_kind_check check (kind in ('priority', 'd
 -- ---------------------------------------------------------------------
 -- Backfill: give every existing user (i.e. everyone who has any rows in
 -- the old single-pool tables) a default planner, then attach their
--- existing rows to it. Skipped entirely for a fresh project with no data.
+-- existing rows to it. Skipped entirely for a fresh project with no data,
+-- and for a re-run, since it only looks at rows where planner_id is null.
 -- ---------------------------------------------------------------------
 do $$
 declare
@@ -116,6 +135,7 @@ alter table daily_state alter column planner_id set not null;
 -- daily_state's uniqueness moves from "one row per user per day" to
 -- "one row per planner per day", since trackers are now per-planner.
 alter table daily_state drop constraint if exists daily_state_user_id_date_key;
+alter table daily_state drop constraint if exists daily_state_planner_id_date_key;
 alter table daily_state add constraint daily_state_planner_id_date_key unique (planner_id, date);
 
 create index if not exists planners_user_id_idx on planners(user_id);

@@ -29,9 +29,13 @@ export async function middleware(request) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Name is now slightly imprecise — this is really "routes reachable
+  // without a session" (login/auth flow, plus /help, which is static
+  // content with no user-scoped data and no reason to require an account).
   const isAuthRoute =
     request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/auth");
+    request.nextUrl.pathname.startsWith("/auth") ||
+    request.nextUrl.pathname === "/help";
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
 
   // "sp_guest" is a plain marker cookie set client-side when someone clicks

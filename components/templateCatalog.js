@@ -25,6 +25,13 @@ export const TEMPLATE_CATALOG = [
     category: "Minimal",
     accentColor: "#9B9B9B",
   },
+  {
+    id: "botanical",
+    name: "Botanical Study Planner",
+    description: "A soft green, leaf-illustrated daily planner sheet.",
+    category: "Illustrated",
+    accentColor: "#6B8E5A",
+  },
 ];
 
 export function getTemplate(id) {

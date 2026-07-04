@@ -10,6 +10,7 @@ export async function GET() {
   } = await supabase.auth.getUser();
 
   if (!user) {
+    
     return NextResponse.json(
       { error: "Not authenticated" },
       { status: 401 }

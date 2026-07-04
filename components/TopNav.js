@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Home,
   Calendar,
@@ -14,12 +15,13 @@ import { createClient } from "@/lib/supabase-browser";
 
 export default function TopNav({ userEmail, isGuest }) {
   const supabase = createClient();
+  const pathname = usePathname();
   const items = [
-    { label: "Home", icon: Home, href: "/", active: true },
-    { label: "Calendar", icon: Calendar },
-    { label: "Tasks", icon: ListTodo },
-    { label: "Files", icon: FolderOpen },
-    { label: "Help", icon: HelpCircle },
+    { label: "Home", icon: Home, href: "/" },
+    { label: "Calendar", icon: Calendar, href: "/calendar" },
+    { label: "Tasks", icon: ListTodo, href: "/tasks" },
+    { label: "Files", icon: FolderOpen, href: "/files" },
+    { label: "Help", icon: HelpCircle, href: "/help" },
   ];
 
   async function handleSignOut() {
@@ -34,24 +36,34 @@ export default function TopNav({ userEmail, isGuest }) {
           S
         </Link>
         <nav className="flex items-center gap-7">
-          {items.map(({ label, icon: Icon, href, active }) => {
+          {items.map(({ label, icon: Icon, href }) => {
+            // Guests only ever have one route (/planner/guest) — none of
+            // these secondary pages have any meaning without a real
+            // account (Calendar/Tasks/Files all read data scoped to a
+            // signed-in user), so they render as inert for guests rather
+            // than linking somewhere that will just 401 or redirect away.
+            const requiresAccount = href !== "/" && href !== "/help";
+            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             const className = `flex items-center gap-2 text-sm transition-colors duration-150 ${
               active ? "text-text" : "text-text-secondary hover:text-text"
-            }`;
+            } ${isGuest && requiresAccount ? "opacity-40 cursor-not-allowed" : ""}`;
             const content = (
               <>
                 <Icon size={20} strokeWidth={1.75} />
                 <span className="hidden lg:inline">{label}</span>
               </>
             );
-            return href ? (
+            if (isGuest && requiresAccount) {
+              return (
+                <span key={label} className={className} title="Sign in to use this">
+                  {content}
+                </span>
+              );
+            }
+            return (
               <Link key={label} href={href} className={className}>
                 {content}
               </Link>
-            ) : (
-              <button key={label} className={className}>
-                {content}
-              </button>
             );
           })}
         </nav>

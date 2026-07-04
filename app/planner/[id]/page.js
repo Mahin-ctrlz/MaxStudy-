@@ -11,17 +11,19 @@ import ExportPdfButton from "@/components/ExportPdfButton";
 import DashboardTemplate, { GUEST_SAMPLE } from "@/components/templates/DashboardTemplate";
 import WeeklyTemplate from "@/components/templates/WeeklyTemplate";
 import MinimalTemplate from "@/components/templates/MinimalTemplate";
+import ImageBackedSheetTemplate from "@/components/templates/ImageBackedSheetTemplate";
 
 const TEMPLATE_COMPONENTS = {
   dashboard: DashboardTemplate,
   weekly: WeeklyTemplate,
   minimal: MinimalTemplate,
+  botanical: (props) => <ImageBackedSheetTemplate {...props} templateId="botanical" />,
 };
 
 // Only the Dashboard template has a PDF layout built (see
 // components/PlannerPDFDocument.js) — the button is hidden rather than
 // shown-and-broken for the other two.
-const PDF_CAPABLE_TEMPLATES = new Set(["dashboard"]);
+const PDF_CAPABLE_TEMPLATES = new Set(["dashboard", "weekly", "minimal"]);
 
 export default function PlannerPage() {
   const params = useParams();

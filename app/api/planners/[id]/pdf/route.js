@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { pdf } from "@react-pdf/renderer";
 import React from "react";
 import PlannerPDFDocument from "@/components/PlannerPDFDocument";
+import WeeklyPDFDocument from "@/components/WeeklyPDFDocument";
+import MinimalPDFDocument from "@/components/MinimalPDFDocument";
+
+const PDF_CAPABLE_TEMPLATES = new Set(["dashboard", "weekly", "minimal"]);
 
 export async function GET(request, { params }) {
   const supabase = await createClient();
@@ -24,37 +28,64 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: "Planner not found" }, { status: 404 });
   }
 
-  if (planner.template_id !== "dashboard") {
-    // Only the Dashboard template has a PDF layout built right now — the
-    // route returns a clear error rather than silently exporting a blank
-    // or wrong-looking page for Weekly/Minimal planners.
+  if (!PDF_CAPABLE_TEMPLATES.has(planner.template_id)) {
+    // Minimal and the illustrated sheet templates don't have a PDF layout
+    // built yet — the route returns a clear error rather than silently
+    // exporting a blank or wrong-looking page.
     return NextResponse.json(
       { error: "PDF export isn't available for this template yet." },
       { status: 400 }
     );
   }
 
-  const [priorityTasks, dueNextTasks, meetings, notes, dailyRows] = await Promise.all([
-    supabase.from("tasks").select("*").eq("planner_id", plannerId).eq("kind", "priority").order("sort_order"),
-    supabase.from("tasks").select("*").eq("planner_id", plannerId).eq("kind", "due_next").order("sort_order"),
-    supabase.from("meetings").select("*").eq("planner_id", plannerId).order("sort_order"),
-    supabase.from("notes").select("*").eq("planner_id", plannerId).order("sort_order"),
-    supabase
-      .from("daily_state")
+  let doc;
+
+  if (planner.template_id === "weekly") {
+    const { data: tasks } = await supabase
+      .from("tasks")
       .select("*")
       .eq("planner_id", plannerId)
-      .eq("date", new Date().toISOString().slice(0, 10))
-      .maybeSingle(),
-  ]);
+      .eq("kind", "weekly");
 
-  const doc = React.createElement(PlannerPDFDocument, {
-    plannerName: planner.name,
-    priorityTasks: priorityTasks.data || [],
-    dueNextTasks: dueNextTasks.data || [],
-    meetings: meetings.data || [],
-    notes: notes.data || [],
-    daily: dailyRows.data || {},
-  });
+    doc = React.createElement(WeeklyPDFDocument, {
+      plannerName: planner.name,
+      tasks: tasks || [],
+    });
+  } else if (planner.template_id === "minimal") {
+    const { data: tasks } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("planner_id", plannerId)
+      .eq("kind", "minimal")
+      .order("sort_order");
+
+    doc = React.createElement(MinimalPDFDocument, {
+      plannerName: planner.name,
+      tasks: tasks || [],
+    });
+  } else {
+    const [priorityTasks, dueNextTasks, meetings, notes, dailyRows] = await Promise.all([
+      supabase.from("tasks").select("*").eq("planner_id", plannerId).eq("kind", "priority").order("sort_order"),
+      supabase.from("tasks").select("*").eq("planner_id", plannerId).eq("kind", "due_next").order("sort_order"),
+      supabase.from("meetings").select("*").eq("planner_id", plannerId).order("sort_order"),
+      supabase.from("notes").select("*").eq("planner_id", plannerId).order("sort_order"),
+      supabase
+        .from("daily_state")
+        .select("*")
+        .eq("planner_id", plannerId)
+        .eq("date", new Date().toISOString().slice(0, 10))
+        .maybeSingle(),
+    ]);
+
+    doc = React.createElement(PlannerPDFDocument, {
+      plannerName: planner.name,
+      priorityTasks: priorityTasks.data || [],
+      dueNextTasks: dueNextTasks.data || [],
+      meetings: meetings.data || [],
+      notes: notes.data || [],
+      daily: dailyRows.data || {},
+    });
+  }
 
   const stream = await pdf(doc).toBuffer();
   const chunks = [];
