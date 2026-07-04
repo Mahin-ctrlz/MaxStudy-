@@ -1,12 +1,13 @@
 import "./globals.css";
 import { Inter, Caveat } from "next/font/google";
 
+export const dynamic = 'force-dynamic';
+
 const inter = Inter({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600"],
   variable: "--font-inter",
 });
-
 const caveat = Caveat({
   subsets: ["latin"],
   weight: ["500", "600"],
